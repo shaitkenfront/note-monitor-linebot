@@ -21,6 +21,7 @@ def get_dashboard_info_from_note_url(note_url: str):
     指定されたnote.comのURLからフォロワー数を取得する
     """
     if not note_url:
+        print('The note.com URL variable is empty.')
         return {
             'error': 'note.comのURLが指定されていません。'
         }
@@ -30,21 +31,27 @@ def get_dashboard_info_from_note_url(note_url: str):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
 
-        response = requests.get(note_url, headers=headers, timeout=10)
+        response = requests.get(note_url, headers=headers, timeout=20)
         response.raise_for_status()
 
         # フォロワー数は生のHTMLから'\"followerCount\" :'の後に続く数値を取得する
         if 'followerCount' not in response.text:
+            print('"followerCount" is not found.')
+            print(response.text)
             return {'error': 'フォロワー数の情報が見つかりません。URLが正しいか確認してください。'}
         follower_count_match = re.search(r'\\"followerCount\\"\s*:\s*(\d+)', response.text)
         if follower_count_match:
             followers_count = int(follower_count_match.group(1))
         else:
+            print('The followers count regex did not match.')
+            print(response.text)
             followers_count = 0
 
     except requests.exceptions.RequestException as e:
+        print('A request error occurred.')
         return {'error': f'リクエストエラー: {str(e)}'}
     except Exception as e:
+        print('A unexcepted error occurred.')
         return {'error': f'予期しないエラー: {str(e)}'}
 
     return {
