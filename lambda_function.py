@@ -16,7 +16,9 @@ def get_note_dashboard_response_for_user(note_username: str) -> str:
 def handle_user_message(user_id: str, message: str) -> str:
     """
     ユーザーからのメッセージを処理する
-    - note.comのユーザー名の場合：DynamoDBに保存
+    - note.comのユーザー名で未登録の場合：DynamoDBに保存
+    - note.comのユーザー名で登録数制限に達している場合：オンデマンドでフォロワー数を取得・表示
+    - note.comのユーザー名で既に登録済みの場合：既に登録済みメッセージを表示
     - unfollow の場合：DynamoDBから削除
     - その他の場合：現在の登録情報を表示
     """
@@ -29,7 +31,7 @@ def handle_user_message(user_id: str, message: str) -> str:
 
     # note.comのユーザー名として有効かチェック
     if validator.validate_note_username(message):
-        # 登録数制限チェック（3個まで）
+        # 登録数制限チェック（1個まで）
         current_count = db.count_user_mappings(user_id)
         current_usernames = db.get_user_mappings(user_id)
 
@@ -37,9 +39,10 @@ def handle_user_message(user_id: str, message: str) -> str:
         if message in current_usernames:
             return f"⚠️ 「{message}」は既に登録されています。"
 
-        # 3個制限チェック
-        if current_count >= 3:
-            return "⚠️ 登録できるnoteユーザーIDは3個までです。"
+        # 1個制限チェック - 制限に達している場合は、オンデマンドでフォロワー数を取得
+        if current_count >= 1:
+            follower_info = get_note_dashboard_response_for_user(message)
+            return f"📊 現在のフォロワー数情報\n\n{follower_info}"
 
         # DynamoDBに保存
         success = db.save_user_mapping(user_id, message)
@@ -54,7 +57,7 @@ def handle_user_message(user_id: str, message: str) -> str:
 
         if current_usernames:
             usernames_list = '\n'.join([f"• {username}" for username in current_usernames])
-            return f"📊 現在の登録情報 ({len(current_usernames)}/3)\n\n👤 note.comユーザー名:\n{usernames_list}\n\n新しいユーザー名を登録する場合は、3-16文字の英数字とアンダースコアで入力してください。"
+            return f"📊 現在の登録情報 ({len(current_usernames)}/1)\n\n👤 note.comユーザー名:\n{usernames_list}\n\n新しいユーザー名を登録する場合は、既存の登録を削除してから3-16文字の英数字とアンダースコアで入力してください。"
         else:
             return "📝 note.comのユーザー名を登録してください。\n\n例：hekisaya\n\n※ 3-16文字の英数字とアンダースコアのみ使用可能です。"
 

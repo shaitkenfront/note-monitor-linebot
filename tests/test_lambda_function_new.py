@@ -12,6 +12,8 @@ class TestHandleUserMessage:
         """有効なnote.comユーザー名を処理できること"""
         mock_db_instance = Mock()
         mock_db_handler.return_value = mock_db_instance
+        mock_db_instance.count_user_mappings.return_value = 0
+        mock_db_instance.get_user_mappings.return_value = []
         mock_db_instance.save_user_mapping.return_value = True
         
         result = lambda_function.handle_user_message('user123', 'test_user')
@@ -25,6 +27,8 @@ class TestHandleUserMessage:
         """DynamoDBへの保存に失敗した場合のエラーメッセージ"""
         mock_db_instance = Mock()
         mock_db_handler.return_value = mock_db_instance
+        mock_db_instance.count_user_mappings.return_value = 0
+        mock_db_instance.get_user_mappings.return_value = []
         mock_db_instance.save_user_mapping.return_value = False
         
         result = lambda_function.handle_user_message('user123', 'test_user')
@@ -49,23 +53,22 @@ class TestHandleUserMessage:
         """無効なユーザー名の場合、既存のユーザー情報を表示すること"""
         mock_db_instance = Mock()
         mock_db_handler.return_value = mock_db_instance
-        mock_db_instance.get_user_mapping.return_value = 'existing_user'
+        mock_db_instance.get_user_mappings.return_value = ['existing_user']
         
-        result = lambda_function.handle_user_message('user123', 'invalid-username')
+        result = lambda_function.handle_user_message('user123', 'xx')
         
         assert '📊 現在の登録情報' in result
-        assert '👤 note.comユーザー名: existing_user' in result
+        assert '• existing_user' in result
         assert '新しいユーザー名を登録する場合は' in result
-        mock_db_instance.get_user_mapping.assert_called_once_with('user123')
     
     @patch('lambda_function.db_handler.DynamoDBHandler')
     def test_handle_user_message_invalid_username_new_user(self, mock_db_handler):
         """無効なユーザー名で新規ユーザーの場合、登録案内を表示すること"""
         mock_db_instance = Mock()
         mock_db_handler.return_value = mock_db_instance
-        mock_db_instance.get_user_mapping.return_value = None
+        mock_db_instance.get_user_mappings.return_value = []
         
-        result = lambda_function.handle_user_message('user123', 'invalid-username')
+        result = lambda_function.handle_user_message('user123', 'xx')
         
         assert '📝 note.comのユーザー名を登録してください' in result
         assert '例：hekisaya' in result
@@ -76,7 +79,7 @@ class TestHandleUserMessage:
         """空メッセージの場合、登録案内を表示すること"""
         mock_db_instance = Mock()
         mock_db_handler.return_value = mock_db_instance
-        mock_db_instance.get_user_mapping.return_value = None
+        mock_db_instance.get_user_mappings.return_value = []
         
         result = lambda_function.handle_user_message('user123', '')
         
@@ -87,6 +90,8 @@ class TestHandleUserMessage:
         """境界値のユーザー名を正しく処理できること"""
         mock_db_instance = Mock()
         mock_db_handler.return_value = mock_db_instance
+        mock_db_instance.count_user_mappings.return_value = 0
+        mock_db_instance.get_user_mappings.return_value = []
         mock_db_instance.save_user_mapping.return_value = True
         
         # 3文字（最小）
@@ -193,11 +198,12 @@ class TestIntegrationWithNewFeatures:
         """ユーザー登録のワークフローが正しく動作すること"""
         mock_db_instance = Mock()
         mock_db_handler.return_value = mock_db_instance
+        mock_db_instance.count_user_mappings.return_value = 0
+        mock_db_instance.get_user_mappings.return_value = []
         mock_db_instance.save_user_mapping.return_value = True
-        mock_db_instance.get_user_mapping.return_value = None
         
         # 最初は未登録状態
-        result = lambda_function.handle_user_message('user123', 'invalid')
+        result = lambda_function.handle_user_message('user123', 'xx')  # 2文字なので無効
         assert '📝 note.comのユーザー名を登録してください' in result
         
         # 有効なユーザー名で登録
@@ -205,7 +211,7 @@ class TestIntegrationWithNewFeatures:
         assert '✅ note.comのユーザー名「valid_user」を登録しました' in result
         
         # 登録後の状態確認
-        mock_db_instance.get_user_mapping.return_value = 'valid_user'
-        result = lambda_function.handle_user_message('user123', 'status')
+        mock_db_instance.get_user_mappings.return_value = ['valid_user']
+        result = lambda_function.handle_user_message('user123', 'x@')  # 無効な文字を含む
         assert '📊 現在の登録情報' in result
-        assert '👤 note.comユーザー名: valid_user' in result
+        assert '• valid_user' in result
