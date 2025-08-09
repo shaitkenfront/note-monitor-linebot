@@ -179,6 +179,11 @@ pytest --cov=app
 
 ### テストファイル構成
 
+#### t_wada流テスト設計採用
+- `tests/test_handle_user_message.py`: ユーザーメッセージ処理のテスト（Given-When-Then構造）
+- `tests/test_note_username_validator.py`: note.comユーザー名バリデーションのテスト（境界値・エッジケース網羅）
+
+#### レガシーテスト
 - `tests/test_db_handler.py`: DynamoDB ハンドラーのテスト
 - `tests/test_lambda_function.py`: Lambda 関数のテスト
 - `tests/test_lambda_function_limit.py`: 制限チェック機能のテスト
